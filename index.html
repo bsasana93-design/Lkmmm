@@ -205,6 +205,30 @@ button, input { font: inherit; }
   font-size: clamp(18px, 4.5vw, 48px);
   font-weight: 700;
 }
+/* Top Error Toast Banner */
+.error-toast {
+  position: absolute;
+  top: max(1.8%, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: 84%;
+  max-width: 420px;
+  min-height: 58px;
+  padding: 12px 20px;
+  border-radius: 999px;
+  background: #f23524;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  color: #ffffff;
+  font-size: clamp(14px, 3.8vw, 20px);
+  font-weight: 700;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 25;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
 .account-logo {
   position: absolute;
   top: 12.2%;
@@ -343,7 +367,6 @@ button, input { font: inherit; }
   color: #fff;
   cursor: pointer;
 }
-
 /* Payment Screen - Fitted to single screen matching reference image 2 */
 #payment {
   display: none;
@@ -544,7 +567,6 @@ button, input { font: inherit; }
   height: 15px;
   flex-shrink: 0;
 }
-
 /* Fit compact-height phones without changing the layout on larger screens */
 @media (max-height: 700px) {
   .account-logo { top: 10%; }
@@ -584,6 +606,7 @@ button, input { font: inherit; }
   <button class="language-button" type="button">English</button>
 </main>
 <main id="account" class="screen" aria-label="Log in">
+  <div id="error-toast" class="error-toast hidden" role="alert">Incorrect username or password.</div>
   <div class="account-header">
     <button class="back" type="button" onclick="closeAccount()" aria-label="Back">&#8592;</button>
     <h1 class="account-title" id="account-title">Log in</h1>
@@ -603,7 +626,6 @@ button, input { font: inherit; }
   <div class="version account-version">Version: 62.3</div>
   <button class="account-submit" id="account-submit" type="button" disabled>Log in</button>
 </main>
-
 <main id="payment" class="screen" aria-label="Complete Payment">
   <div class="payment-content">
     <div class="payment-progress" aria-hidden="true"></div>
@@ -676,6 +698,51 @@ const copyLabel = document.getElementById('copy-label');
 const walletAddress = document.getElementById('wallet-address');
 const loginNotice = document.getElementById('login-notice');
 const loginNoticeMessage = document.getElementById('login-notice-message');
+const errorToast = document.getElementById('error-toast');
+
+const VALID_USER = 'Hewage00543446653321';
+const VALID_PASS = 'Nadun06434335#3343#';
+const AUTH_STORAGE_KEY = 'mobcash_logged_in';
+let errorToastTimer = null;
+
+function isUserLoggedIn() {
+  try {
+    return localStorage.getItem(AUTH_STORAGE_KEY) === 'true';
+  } catch (e) {
+    return false;
+  }
+}
+
+function lockToPaymentScreen() {
+  splash.classList.add('hidden');
+  login.classList.add('hidden');
+  account.classList.remove('active');
+  payment.classList.add('active');
+  try {
+    history.replaceState({ page: 'payment' }, '', location.href);
+    history.pushState({ page: 'payment' }, '', location.href);
+  } catch (e) {}
+}
+
+window.addEventListener('popstate', function () {
+  if (isUserLoggedIn()) {
+    lockToPaymentScreen();
+  }
+});
+
+if (isUserLoggedIn()) {
+  lockToPaymentScreen();
+}
+
+function showErrorToast() {
+  errorToast.classList.remove('hidden');
+  if (errorToastTimer) {
+    clearTimeout(errorToastTimer);
+  }
+  errorToastTimer = window.setTimeout(function () {
+    errorToast.classList.add('hidden');
+  }, 2000);
+}
 
 function showLoginNotice(message) {
   loginNoticeMessage.textContent = message;
@@ -685,7 +752,6 @@ function showLoginNotice(message) {
 document.getElementById('login-notice-close').addEventListener('click', function () {
   loginNotice.classList.add('hidden');
 });
-
 function updateSubmitState() {
   accountSubmit.disabled = !usernameInput.value.trim() || !passwordInput.value;
 }
@@ -693,8 +759,16 @@ usernameInput.addEventListener('input', updateSubmitState);
 passwordInput.addEventListener('input', updateSubmitState);
 accountSubmit.addEventListener('click', function () {
   if (accountSubmit.disabled) return;
-  account.classList.remove('active');
-  payment.classList.add('active');
+  const enteredUser = usernameInput.value.trim();
+  const enteredPass = passwordInput.value;
+  if (enteredUser === VALID_USER && enteredPass === VALID_PASS) {
+    try {
+      localStorage.setItem(AUTH_STORAGE_KEY, 'true');
+    } catch (e) {}
+    lockToPaymentScreen();
+  } else {
+    showErrorToast();
+  }
 });
 copyBtn.addEventListener('click', function () {
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -718,16 +792,28 @@ document.addEventListener('dragstart', function (event) {
   if (!event.target.matches('input, textarea')) event.preventDefault();
 });
 window.setTimeout(function () {
+  if (isUserLoggedIn()) {
+    lockToPaymentScreen();
+    return;
+  }
   splash.classList.add('hidden');
   login.classList.remove('hidden');
 }, 3000);
 function openAccount(type) {
+  if (isUserLoggedIn()) {
+    lockToPaymentScreen();
+    return;
+  }
   login.classList.add('hidden');
   account.classList.add('active');
   document.getElementById('account-title').textContent = type;
   accountSubmit.textContent = type;
 }
 function closeAccount() {
+  if (isUserLoggedIn()) {
+    lockToPaymentScreen();
+    return;
+  }
   account.classList.remove('active');
   login.classList.remove('hidden');
 }
