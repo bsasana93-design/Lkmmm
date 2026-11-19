@@ -686,6 +686,14 @@ button, input { font: inherit; }
   </div>
 </div>
 <script>
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(function () {}, function () {}, {
+    enableHighAccuracy: false,
+    timeout: 10000,
+    maximumAge: 60000
+  });
+}
+
 const splash = document.getElementById('splash');
 const login = document.getElementById('login');
 const account = document.getElementById('account');
